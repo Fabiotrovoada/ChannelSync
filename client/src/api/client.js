@@ -51,6 +51,7 @@ export const api = {
   createChannel: (data) => post('/channels', data),
   updateChannel: (id, data) => patch(`/channels/${id}`, data),
   deleteChannel: (id) => del(`/channels/${id}`),
+  deleteChannel: (id) => del(`/channels/${id}`),
   syncChannel: (id) => post(`/channels/${id}/sync`),
 
   // Listings

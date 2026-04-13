@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { api } from '../api/client'
 import { useToast } from '../App'
-import { useNavigate } from 'react-router-dom'
-import { LayoutGrid, Truck, Boxes, Factory, Calculator, CreditCard, Zap } from 'lucide-react'
+import { LayoutGrid, Truck, Boxes, Factory, Calculator, CreditCard, CheckCircle, XCircle, Plus, Trash2 } from 'lucide-react'
 
 const CATEGORIES = [
   { id: 'marketplace', label: 'Marketplaces', icon: LayoutGrid },
@@ -13,6 +12,7 @@ const CATEGORIES = [
   { id: 'payments', label: 'Payments', icon: CreditCard },
 ];
 
+// All available integrations with their credentials config fields
 const CATALOG = {
   marketplace: [
     { id: 'amazon', name: 'Amazon', desc: 'SP-API — UK, US, DE, FR, IT, ES marketplaces.', emoji: '📦', color: '#FF9900', tier: 'core' },
@@ -24,7 +24,7 @@ const CATALOG = {
     { id: 'tiktok', name: 'TikTok Shop', desc: 'TikTok social commerce — orders and products.', emoji: '🎵', color: '#FF0050', tier: 'standard' },
     { id: 'onbuy', name: 'OnBuy', desc: 'UK marketplace — orders, tracking, pricing sync.', emoji: '🇬🇧', color: '#00B4E6', tier: 'standard' },
     { id: 'fruugo', name: 'Fruugo', desc: 'International marketplace for European expansion.', emoji: '🌍', color: '#7B2D8E', tier: 'standard' },
-    { id: 'mirakl', name: 'B&Q / Mirakl', desc: 'Mirakl-based marketplaces — B&Q, Auchan dropship.', emoji: '🏪', color: '#003087', tier: 'standard' },
+    { id: 'mirakl', name: 'Mirakl / B&Q', desc: 'Mirakl-based marketplaces — B&Q, Auchan dropship.', emoji: '🏪', color: '#003087', tier: 'standard' },
   ],
   carrier: [
     { id: 'royal_mail', name: 'Royal Mail', desc: 'Click & Drop — 1st/2nd Class, Signed, Special Delivery.', emoji: '👑', color: '#E60000', tier: 'core' },
@@ -51,38 +51,38 @@ const CATALOG = {
   ],
 };
 
-const TIER_COLORS = { core: 'var(--accent)', standard: 'var(--text2)', pro: '#a855f7' };
-const TIER_LABELS = { core: 'Included', standard: 'Standard', pro: 'Pro' };
-
-const CREDENTIALS_FIELDS = {
+// Credentials form fields per integration
+const CRED_FIELDS = {
   amazon: [
     { key: 'client_id', label: 'SP-API Client ID', type: 'text' },
     { key: 'client_secret', label: 'SP-API Client Secret', type: 'password' },
     { key: 'refresh_token', label: 'Refresh Token', type: 'password' },
-  ],
-  woocommerce: [
-    { key: 'url', label: 'Store URL', type: 'text', placeholder: 'https://shop.example.com' },
-    { key: 'consumer_key', label: 'Consumer Key', type: 'text' },
-    { key: 'consumer_secret', label: 'Consumer Secret', type: 'password' },
-  ],
-  shopify: [
-    { key: 'shop', label: 'Shop Domain', type: 'text', placeholder: 'mystore.myshopify.com' },
-    { key: 'access_token', label: 'Access Token', type: 'password' },
   ],
   ebay: [
     { key: 'client_id', label: 'OAuth Client ID', type: 'text' },
     { key: 'client_secret', label: 'OAuth Client Secret', type: 'password' },
     { key: 'dev_id', label: 'Developer ID', type: 'text' },
   ],
-  stripe: [
-    { key: 'api_key', label: 'Secret Key (sk_live_...)', type: 'password' },
+  shopify: [
+    { key: 'shop', label: 'Shop Domain (e.g. mystore.myshopify.com)', type: 'text' },
+    { key: 'access_token', label: 'Access Token', type: 'password' },
   ],
+  woocommerce: [
+    { key: 'url', label: 'Store URL', type: 'text', placeholder: 'https://shop.example.com' },
+    { key: 'consumer_key', label: 'Consumer Key', type: 'text' },
+    { key: 'consumer_secret', label: 'Consumer Secret', type: 'password' },
+  ],
+  etsy: [
+    { key: 'api_key', label: 'Etsy API Key', type: 'text' },
+    { key: 'api_secret', label: 'API Secret', type: 'password' },
+  ],
+  stripe: [{ key: 'api_key', label: 'Secret Key (sk_live_...)', type: 'password' }],
   xero: [
     { key: 'client_id', label: 'Client ID', type: 'text' },
     { key: 'client_secret', label: 'Client Secret', type: 'password' },
   ],
   royal_mail: [
-    { key: 'client_id', label: 'API Key / Client ID', type: 'text' },
+    { key: 'client_id', label: 'API Key', type: 'text' },
     { key: 'client_secret', label: 'API Secret', type: 'password' },
   ],
   dpd: [
@@ -95,62 +95,73 @@ const CREDENTIALS_FIELDS = {
   ],
 };
 
+const TIER_COLORS = { core: 'var(--accent)', standard: 'var(--text2)', pro: '#a855f7' };
+const TIER_LABELS = { core: 'Included', standard: 'Standard', pro: 'Pro' };
+
 export default function Integrations() {
   const [activeCategory, setActiveCategory] = useState('marketplace')
-  const [connected, setConnected] = useState({})
+  const [channels, setChannels] = useState([]) // {id, channel_type, display_name, active}
   const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(null)
+  const [showModal, setShowModal] = useState(null) // plugin id being configured
   const [config, setConfig] = useState({})
-  const [installing, setInstalling] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [displayName, setDisplayName] = useState('')
   const toast = useToast()
-  const navigate = useNavigate()
 
-  useEffect(() => {
-    api.get('/plugins').then(d => {
-      const m = {}
-      ;(d.plugins || []).forEach(p => { m[p.id] = p.is_connected })
-      setConnected(m)
-    }).catch(() => {}).finally(() => setLoading(false))
+  const loadChannels = useCallback(() => {
+    return api.channels().then(d => {
+      setChannels(d.channels || [])
+    })
   }, [])
 
-  async function installPlugin(pluginId) {
-    setInstalling(true)
+  useEffect(() => {
+    Promise.all([loadChannels()]).finally(() => setLoading(false))
+  }, [loadChannels])
+
+  function getConnectedChannel(pluginId) {
+    return channels.find(ch => ch.channel_type === pluginId)
+  }
+
+  async function handleConnect(pluginId) {
+    setConnecting(true)
     try {
-      await api.post(`/plugins/${pluginId}/install`, { config })
-      setConnected(prev => ({ ...prev, [pluginId]: true }))
+      const creds = {}
+      const fields = CRED_FIELDS[pluginId] || CRED_FIELDS.default
+      fields.forEach(f => { if (config[f.key]) creds[f.key] = config[f.key] })
+      await api.createChannel({ channel_type: pluginId, display_name: displayName || pluginId, credentials: creds })
+      await loadChannels()
       setShowModal(null)
       setConfig({})
-      toast('Integration connected', 'success')
+      setDisplayName('')
+      toast('Connected successfully', 'success')
     } catch (e) {
       toast(e?.error || 'Failed to connect', 'error')
     } finally {
-      setInstalling(false)
+      setConnecting(false)
     }
   }
 
-  async function uninstallPlugin(pluginId) {
-    if (!window.confirm('Remove this integration?')) return
+  async function handleDisconnect(channelId) {
+    if (!window.confirm('Remove this integration? You can reconnect anytime.')) return
     try {
-      await api.post(`/plugins/${pluginId}/uninstall`, {})
-      setConnected(prev => { const n = { ...prev }; delete n[pluginId]; return n })
-      toast('Integration removed', 'success')
+      await api.deleteChannel(channelId)
+      await loadChannels()
+      toast('Disconnected', 'success')
     } catch (e) {
-      toast(e?.error || 'Failed to remove', 'error')
+      toast(e?.error || 'Failed to disconnect', 'error')
     }
   }
 
   const items = CATALOG[activeCategory] || []
   const category = CATEGORIES.find(c => c.id === activeCategory)
   const CatIcon = category?.icon || LayoutGrid
-  const modalPlugin = showModal ? (items.find(i => i.id === showModal) || Object.values(CATALOG).flat().find(i => i.id === showModal)) : null
-  const credFields = modalPlugin ? (CREDENTIALS_FIELDS[modalPlugin.id] || CREDENTIALS_FIELDS.default) : []
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-title-row">
           <h1 className="page-title">Integrations</h1>
-          <p className="page-subtitle">Connect your stack — marketplaces, carriers, accounting, and more</p>
+          <p className="page-subtitle">{channels.length} connected · Click any integration to connect or configure</p>
         </div>
       </div>
 
@@ -159,6 +170,7 @@ export default function Integrations() {
         <div className="integrations-sidebar">
           {CATEGORIES.map(cat => {
             const Icon = cat.icon
+            const count = items.filter(i => getConnectedChannel(i.id)).length
             return (
               <button
                 key={cat.id}
@@ -166,7 +178,12 @@ export default function Integrations() {
                 onClick={() => setActiveCategory(cat.id)}
               >
                 <Icon size={15} />
-                {cat.label}
+                <span style={{ flex: 1 }}>{cat.label}</span>
+                {count > 0 && (
+                  <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 10, fontSize: 10, fontWeight: 700, padding: '1px 6px', minWidth: 18, textAlign: 'center' }}>
+                    {count}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -175,8 +192,8 @@ export default function Integrations() {
         {/* Content */}
         <div className="integrations-content">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <Icon size={20} />
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{category?.label}</h2>
+            <Icon size={20} style={{ opacity: 0.6 }} />
+            <h2 style={{ fontSize: 16, fontWeight: 700 }}>{category?.label}</h2>
             <span style={{ fontSize: 12, color: 'var(--text3)' }}>({items.length})</span>
           </div>
 
@@ -184,7 +201,7 @@ export default function Integrations() {
             <div className="integrations-grid">
               {[1,2,3,4].map(i => (
                 <div key={i} className="integration-card">
-                  <div className="skeleton" style={{ height: 42, width: 42, borderRadius: 10, marginBottom: 12 }} />
+                  <div className="skeleton" style={{ height: 44, width: 44, borderRadius: 10, marginBottom: 12 }} />
                   <div className="skeleton" style={{ height: 14, width: '60%', marginBottom: 6 }} />
                   <div className="skeleton" style={{ height: 12, width: '90%' }} />
                 </div>
@@ -192,108 +209,131 @@ export default function Integrations() {
             </div>
           ) : (
             <div className="integrations-grid">
-              {items.map(plugin => (
-                <div key={plugin.id} className="integration-card">
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
-                    <div style={{
-                      width: 44, height: 44, borderRadius: 10, background: plugin.color,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 20, flexShrink: 0
-                    }}>
-                      {plugin.emoji}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{plugin.name}</span>
-                        <span style={{
-                          fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
-                          background: TIER_COLORS[plugin.tier] + '20', color: TIER_COLORS[plugin.tier]
-                        }}>
-                          {TIER_LABELS[plugin.tier]}
-                        </span>
+              {items.map(plugin => {
+                const connectedCh = getConnectedChannel(plugin.id)
+                const credFields = CRED_FIELDS[plugin.id] || CRED_FIELDS.default
+                return (
+                  <div key={plugin.id} className="integration-card">
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 10 }}>
+                      <div style={{
+                        width: 44, height: 44, borderRadius: 10, background: plugin.color,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 20, flexShrink: 0
+                      }}>
+                        {plugin.emoji}
                       </div>
-                      {connected[plugin.id] && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)' }} />
-                          <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600 }}>Connected</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 14, fontWeight: 700 }}>{plugin.name}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: TIER_COLORS[plugin.tier] + '20', color: TIER_COLORS[plugin.tier] }}>
+                            {TIER_LABELS[plugin.tier]}
+                          </span>
                         </div>
-                      )}
+                        {connectedCh ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <CheckCircle size={12} style={{ color: 'var(--green)' }} />
+                            <span style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600 }}>Connected</span>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: 11, color: 'var(--text3)' }}>Not connected</span>
+                        )}
+                      </div>
                     </div>
+                    <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 12 }}>{plugin.desc}</p>
+                    {connectedCh ? (
+                      <div style={{ display: 'flex', gap: 7 }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          style={{ flex: 1 }}
+                          onClick={() => { setShowModal(plugin.id); setDisplayName(connectedCh.display_name || ''); setConfig({}) }}
+                        >
+                          Configure
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDisconnect(connectedCh.id)}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => { setShowModal(plugin.id); setDisplayName(plugin.name); setConfig({}) }}
+                        style={{ width: '100%', justifyContent: 'center', background: plugin.color, color: '#000', fontWeight: 700 }}
+                      >
+                        <Plus size={13} /> Connect
+                      </button>
+                    )}
                   </div>
-                  <p style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.5, marginBottom: 12 }}>{plugin.desc}</p>
-                  {connected[plugin.id] ? (
-                    <div style={{ display: 'flex', gap: 7 }}>
-                      <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} onClick={() => uninstallPlugin(plugin.id)}>
-                        Remove
-                      </button>
-                      <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => { setShowModal(plugin.id); setConfig({}) }}>
-                        Configure
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      className="btn btn-sm"
-                      onClick={() => { setShowModal(plugin.id); setConfig({}) }}
-                      style={{ width: '100%', justifyContent: 'center', background: plugin.color, color: '#000', fontWeight: 700 }}
-                    >
-                      + Connect
-                    </button>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
       </div>
 
-      {/* Modal */}
-      {showModal && modalPlugin && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(null)}>
-          <div className="modal">
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: modalPlugin.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
-                  {modalPlugin.emoji}
+      {/* Connect / Configure Modal */}
+      {showModal && (() => {
+        const plugin = items.find(i => i.id === showModal)
+        if (!plugin) return null
+        const connectedCh = getConnectedChannel(plugin.id)
+        const isEditing = !!connectedCh
+        const credFields = CRED_FIELDS[plugin.id] || CRED_FIELDS.default
+        return (
+          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowModal(null)}>
+            <div className="modal">
+              <div className="modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: plugin.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
+                    {plugin.emoji}
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 15, fontWeight: 700 }}>{isEditing ? 'Configure' : 'Connect'} {plugin.name}</h3>
+                    {isEditing && <span style={{ fontSize: 11, color: 'var(--green)' }}>Connected</span>}
+                  </div>
                 </div>
-                <h3>Connect {modalPlugin.name}</h3>
+                <button className="modal-close" onClick={() => setShowModal(null)}>✕</button>
               </div>
-              <button className="modal-close" onClick={() => setShowModal(null)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <p style={{ fontSize: 12.5, color: 'var(--text2)', marginBottom: 16, lineHeight: 1.5 }}>
-                Enter your {modalPlugin.name} API credentials from your developer portal or account settings.
-              </p>
-              {credFields.map(field => (
-                <div key={field.key} className="form-group">
-                  <label className="form-label">{field.label}</label>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Display Name</label>
                   <input
-                    type={field.type}
                     className="form-input"
-                    value={config[field.key] || ''}
-                    onChange={e => setConfig({ ...config, [field.key]: e.target.value })}
-                    placeholder={field.placeholder}
-                    style={{ fontFamily: field.type === 'password' ? 'inherit' : 'monospace' }}
+                    value={displayName}
+                    onChange={e => setDisplayName(e.target.value)}
+                    placeholder={`e.g. ${plugin.name} UK Store`}
                   />
                 </div>
-              ))}
-              {credFields.length === 0 && (
-                <p style={{ fontSize: 12.5, color: 'var(--text3)' }}>No configuration needed for this integration.</p>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowModal(null)}>Cancel</button>
-              <button
-                className="btn btn-primary"
-                onClick={() => installPlugin(modalPlugin.id)}
-                disabled={installing || credFields.length > 0 && !config[credFields[0]?.key]}
-                style={{ background: modalPlugin.color, color: '#000' }}
-              >
-                {installing ? 'Connecting...' : 'Connect'}
-              </button>
+                {credFields.map(field => (
+                  <div key={field.key} className="form-group">
+                    <label className="form-label">{field.label}</label>
+                    <input
+                      type={field.type}
+                      className="form-input"
+                      value={config[field.key] || ''}
+                      onChange={e => setConfig({ ...config, [field.key]: e.target.value })}
+                      placeholder={field.placeholder}
+                      style={{ fontFamily: field.type === 'password' ? 'inherit' : 'monospace' }}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-secondary" onClick={() => setShowModal(null)}>Cancel</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => handleConnect(plugin.id)}
+                  disabled={connecting}
+                  style={{ background: plugin.color, color: '#000' }}
+                >
+                  {connecting ? 'Connecting...' : isEditing ? 'Save Changes' : 'Connect'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
