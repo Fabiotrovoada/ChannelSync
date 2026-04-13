@@ -35,7 +35,7 @@ export default function AuditLog() {
   async function loadLogs() {
     setLoading(true);
     try {
-      const data = await api.get(`/api/audit-log?page=${page}&limit=${perPage}`);
+      const data = await api.auditLog({ page, limit: perPage });
       if (Array.isArray(data)) {
         setLogs(data);
         setTotal(data.length);

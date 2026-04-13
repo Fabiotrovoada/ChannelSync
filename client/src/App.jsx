@@ -77,10 +77,12 @@ function Sidebar({ collapsed, onToggle }) {
   return (
     <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
       <div className="sidebar-header">
-        <span className="logo-icon">◈</span>
-        {!collapsed && <span className="logo-text">VendStack</span>}
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-icon">CS</div>
+          {!collapsed && <span className="sidebar-logo-text">ChannelSync</span>}
+        </div>
         <button className="sidebar-toggle" onClick={onToggle}>
-          {collapsed ? '▸' : '◂'}
+          {collapsed ? '›' : '‹'}
         </button>
       </div>
       <nav className="sidebar-nav">
@@ -104,7 +106,7 @@ function Sidebar({ collapsed, onToggle }) {
           </div>
         )}
         <button className="btn-ghost btn-sm" onClick={handleLogout} style={{ width: '100%' }}>
-          {collapsed ? '⏻' : 'Logout'}
+          {collapsed ? '⏻' : 'Sign out'}
         </button>
       </div>
     </aside>
@@ -157,7 +159,7 @@ export default function App() {
   }, [])
 
   if (loading) {
-    return <div className="loading-screen"><div className="spinner" /><span>Loading VendStack...</span></div>
+    return <div className="loading-screen"><div className="spinner" /><span style={{ fontSize: 14, color: 'var(--text2)' }}>Loading ChannelSync...</span></div>
   }
 
   return (
