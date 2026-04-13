@@ -106,12 +106,11 @@ def audit(action, details=None):
 # ---------------------------------------------------------------------------
 @app.route('/')
 def serve_spa():
-    return send_from_directory(app.root_path, 'templates/index.html')
+    return send_file(os.path.join(os.path.dirname(__file__), 'templates', 'index.html'))
 
 @app.route('/<path:path>')
 def serve_spa_fallback(path):
-    # Don't interfere with API routes (already matched above)
-    return send_from_directory(app.root_path, 'templates/index.html')
+    return send_file(os.path.join(os.path.dirname(__file__), 'templates', 'index.html'))
 
 
 # ---------------------------------------------------------------------------
