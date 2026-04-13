@@ -121,16 +121,49 @@ export default function Settings() {
           </div>
 
           {/* Plan */}
-          <div className="card">
+          <div className="card" style={{ marginBottom: 16 }}>
             <div className="card-header">
               <div className="card-title">Plan</div>
             </div>
-            <div className="card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)' }}>Pro Plan</div>
                 <div style={{ fontSize: 12.5, color: 'var(--text2)', marginTop: 3 }}>£99/month · Unlimited orders · All channels</div>
               </div>
               <button className="btn btn-ghost" disabled>Current Plan</button>
+            </div>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="card" style={{ borderColor: 'var(--red)' }}>
+            <div className="card-header">
+              <div className="card-title" style={{ color: 'var(--red)' }}>Danger Zone</div>
+            </div>
+            <div className="card-body">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)', marginBottom: 3 }}>Delete Account</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)' }}>Permanently delete your account and all associated data. This cannot be undone.</div>
+                </div>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={async () => {
+                    if (!window.confirm('Are you absolutely sure? This will permanently delete your account, all orders, messages, and channel connections. This cannot be undone.')) return
+                    if (!window.confirm('Final confirmation — type YES to confirm deletion in the next prompt')) return
+                    const confirmed = window.prompt('Type YES to permanently delete your account:')
+                    if (confirmed !== 'YES') { toast('Account deletion cancelled', 'info'); return }
+                    try {
+                      await api.deleteAccount()
+                      toast('Account deleted. Goodbye!', 'success')
+                      setTimeout(() => { window.location.href = '/login' }, 1500)
+                    } catch {
+                      toast('Failed to delete account. Contact support.', 'error')
+                    }
+                  }}
+                >
+                  Delete Account
+                </button>
+              </div>
             </div>
           </div>
         </div>

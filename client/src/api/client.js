@@ -88,4 +88,5 @@ export const api = {
   // Settings
   settings: () => get('/settings'),
   updateSettings: (data) => patch('/settings', data),
+  deleteAccount: () => del('/account'),
 };
