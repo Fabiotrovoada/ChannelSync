@@ -10,7 +10,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from functools import wraps
 
-from flask import Flask, request, jsonify, session, g, send_file
+from flask import Flask, request, jsonify, session, g, send_file, send_from_directory
 from flask_cors import CORS
 
 # ---------------------------------------------------------------------------
@@ -106,12 +106,12 @@ def audit(action, details=None):
 # ---------------------------------------------------------------------------
 @app.route('/')
 def serve_spa():
-    return send_file('templates/index.html')
+    return send_from_directory(app.root_path, 'templates/index.html')
 
 @app.route('/<path:path>')
 def serve_spa_fallback(path):
     # Don't interfere with API routes (already matched above)
-    return send_file('templates/index.html')
+    return send_from_directory(app.root_path, 'templates/index.html')
 
 
 # ---------------------------------------------------------------------------
