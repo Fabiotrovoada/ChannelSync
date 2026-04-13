@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../api/client'
-import { DataTable, PageHeader, Modal } from '../components/shared'
+import DataTable from '../components/DataTable'
+import { PageHeader, Modal } from '../components/shared'
 import { useToast } from '../App'
 
 export default function Inventory() {
@@ -34,18 +35,18 @@ export default function Inventory() {
   const columns = [
     { key: 'sku', label: 'SKU', style: { fontFamily: 'JetBrains Mono, monospace', fontSize: 12 } },
     { key: 'product_name', label: 'Product' },
-    { key: 'warehouse_qty', label: 'Warehouse', render: r => <span className="mono">{r.warehouse_qty}</span> },
-    { key: 'reserved_qty', label: 'Reserved', render: r => <span className="mono">{r.reserved_qty}</span> },
+    { key: 'warehouse_qty', label: 'Warehouse', render: (v, r) => <span className="mono">{r.warehouse_qty ?? 0}</span> },
+    { key: 'reserved_qty', label: 'Reserved', render: (v, r) => <span className="mono">{r.reserved_qty ?? 0}</span> },
     {
-      key: 'available_qty', label: 'Available', render: r => (
+      key: 'available_qty', label: 'Available', render: (v, r) => (
         <span className={`mono ${r.low_stock ? 'text-red' : ''}`}>
-          {r.available_qty} {r.low_stock && '⚠'}
+          {r.available_qty ?? 0} {r.low_stock && '⚠'}
         </span>
       )
     },
-    { key: 'last_updated', label: 'Updated', render: r => r.last_updated ? new Date(r.last_updated).toLocaleDateString() : '—' },
+    { key: 'last_updated', label: 'Updated', render: (v, r) => r.last_updated ? new Date(r.last_updated).toLocaleDateString() : '—' },
     {
-      key: 'actions', label: '', render: r => (
+      key: 'actions', label: '', sortable: false, render: (v, r) => (
         <button className="btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); setAdjusting(r) }}>
           Adjust
         </button>

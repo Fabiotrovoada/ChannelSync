@@ -1,10 +1,8 @@
 import React from 'react'
 
-// --- Skeleton Loader ---
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 export function Skeleton({ width = '100%', height = 16, style = {} }) {
-  return (
-    <div className="skeleton" style={{ width, height, borderRadius: 4, ...style }} />
-  )
+  return <div className="skeleton" style={{ width, height, borderRadius: 4, ...style }} />
 }
 
 export function SkeletonRows({ count = 5 }) {
@@ -18,7 +16,7 @@ export function SkeletonRows({ count = 5 }) {
   ))
 }
 
-// --- KPI Card ---
+// ─── KPI Card ──────────────────────────────────────────────────────────────────
 export function KPICard({ label, value, delta, loading, prefix = '' }) {
   if (loading) {
     return (
@@ -41,87 +39,72 @@ export function KPICard({ label, value, delta, loading, prefix = '' }) {
   )
 }
 
-// --- Status Badge ---
+// ─── Status Badge ──────────────────────────────────────────────────────────────
 const STATUS_COLORS = {
-  pending: 'var(--orange)',
-  shipped: 'var(--green)',
-  delivered: 'var(--green)',
-  cancelled: 'var(--red)',
-  open: 'var(--blue)',
-  resolved: '#4ade80',
-  draft: 'var(--text3)',
-  sent: 'var(--orange)',
-  received: 'var(--green)',
-  'partially_received': 'var(--orange)',
-  active: 'var(--green)',
-  inactive: 'var(--text3)',
+  pending:   { color: '#d97706', bg: '#fffbeb' },
+  shipped:   { color: '#059669', bg: '#ecfdf5' },
+  delivered: { color: '#059669', bg: '#ecfdf5' },
+  cancelled: { color: '#dc2626', bg: '#fef2f2' },
+  open:      { color: '#2563eb', bg: '#eff6ff' },
+  resolved:  { color: '#059669', bg: '#ecfdf5' },
+  draft:     { color: '#6b7280', bg: '#f3f4f6' },
+  sent:      { color: '#d97706', bg: '#fffbeb' },
+  received:  { color: '#059669', bg: '#ecfdf5' },
+  partially_received: { color: '#d97706', bg: '#fffbeb' },
+  active:    { color: '#059669', bg: '#ecfdf5' },
+  inactive:  { color: '#6b7280', bg: '#f3f4f6' },
 }
 
 export function StatusBadge({ status }) {
-  const color = STATUS_COLORS[status] || 'var(--text2)'
+  const s = STATUS_COLORS[status] || { color: 'var(--text2)', bg: 'var(--surface2)' }
   return (
-    <span className="status-badge" style={{ color, borderColor: color }}>
+    <span
+      className="status-badge"
+      style={{ color: s.color, borderColor: s.color, background: s.bg }}
+    >
       {status}
     </span>
   )
 }
 
-// --- Channel Badge ---
+// ─── Channel Badge ─────────────────────────────────────────────────────────────
 const CHANNEL_STYLES = {
-  amazon: { bg: '#ff9900', color: '#000' },
-  ebay: { bg: '#e53238', color: '#fff' },
-  woocommerce: { bg: '#9b5c8f', color: '#fff' },
-  shopify: { bg: '#96bf48', color: '#000' },
-  tiktok: { bg: '#ff0050', color: '#fff' },
-  mirakl: { bg: '#003087', color: '#fff' },
+  amazon:      { bg: '#FF9900', color: '#000' },
+  ebay:        { bg: '#E53238', color: '#fff' },
+  woocommerce: { bg: '#9B5C8F', color: '#fff' },
+  shopify:     { bg: '#96BF48', color: '#000' },
+  tiktok:      { bg: '#FF0050', color: '#fff' },
+  mirakl:      { bg: '#003087', color: '#fff' },
+  etsy:        { bg: '#F56400', color: '#fff' },
+  walmart:     { bg: '#00464F', color: '#fff' },
+  onbuy:       { bg: '#00B4E6', color: '#fff' },
+  fruugo:      { bg: '#7B2D8E', color: '#fff' },
+  royal_mail:  { bg: '#E60000', color: '#fff' },
+  dpd:         { bg: '#E60000', color: '#fff' },
+  evri:        { bg: '#00B4E6', color: '#fff' },
+  dhl:         { bg: '#FFCC00', color: '#000' },
+  ups:         { bg: '#351C15', color: '#fff' },
+  fedex:       { bg: '#4D148C', color: '#fff' },
+  yodel:       { bg: '#009A44', color: '#fff' },
+  shipstation: { bg: '#0066CC', color: '#fff' },
+  xero:        { bg: '#13B5EA', color: '#fff' },
+  stripe:      { bg: '#635BFF', color: '#fff' },
+  paypal:      { bg: '#003087', color: '#fff' },
 }
 
 export function ChannelBadge({ channel }) {
-  const style = CHANNEL_STYLES[channel] || { bg: 'var(--bg4)', color: 'var(--text)' }
+  const s = CHANNEL_STYLES[channel] || { bg: 'var(--surface2)', color: 'var(--text2)' }
   return (
-    <span className="channel-badge" style={{ background: style.bg, color: style.color }}>
+    <span
+      className="channel-badge"
+      style={{ background: s.bg, color: s.color }}
+    >
       {channel}
     </span>
   )
 }
 
-// --- Data Table ---
-export function DataTable({ columns, data, loading, onRowClick, emptyMessage = 'No data' }) {
-  if (loading) {
-    return <div className="data-table-wrap"><SkeletonRows count={8} /></div>
-  }
-
-  if (!data || data.length === 0) {
-    return <div className="data-table-empty">{emptyMessage}</div>
-  }
-
-  return (
-    <div className="data-table-wrap">
-      <table className="data-table">
-        <thead>
-          <tr>
-            {columns.map(col => (
-              <th key={col.key} style={col.style}>{col.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row, i) => (
-            <tr key={row.id || i} onClick={() => onRowClick?.(row)} className={onRowClick ? 'clickable' : ''}>
-              {columns.map(col => (
-                <td key={col.key} style={col.style}>
-                  {col.render ? col.render(row) : row[col.key]}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// --- Modal ---
+// ─── Modal ─────────────────────────────────────────────────────────────────────
 export function Modal({ open, onClose, title, children, width = 480 }) {
   if (!open) return null
   return (
@@ -137,24 +120,39 @@ export function Modal({ open, onClose, title, children, width = 480 }) {
   )
 }
 
-// --- Page Header ---
-export function PageHeader({ title, children }) {
+// ─── Page Header ───────────────────────────────────────────────────────────────
+export function PageHeader({ title, subtitle, actions }) {
   return (
     <div className="page-header">
-      <h1 className="page-title">{title}</h1>
-      <div className="page-actions">{children}</div>
+      <div className="page-title-row">
+        <h1 className="page-title">{title}</h1>
+        {subtitle && <p className="page-subtitle">{subtitle}</p>}
+      </div>
+      {actions && <div className="page-actions">{actions}</div>}
     </div>
   )
 }
 
-// --- Pagination ---
+// ─── Pagination ────────────────────────────────────────────────────────────────
 export function Pagination({ page, pages, onPageChange }) {
   if (pages <= 1) return null
   return (
     <div className="pagination">
-      <button className="btn-ghost btn-sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>← Prev</button>
+      <button
+        className="btn btn-secondary btn-sm"
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+      >
+        ← Prev
+      </button>
       <span className="pagination-info">Page {page} of {pages}</span>
-      <button className="btn-ghost btn-sm" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>Next →</button>
+      <button
+        className="btn btn-secondary btn-sm"
+        disabled={page >= pages}
+        onClick={() => onPageChange(page + 1)}
+      >
+        Next →
+      </button>
     </div>
   )
 }

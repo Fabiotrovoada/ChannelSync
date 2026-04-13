@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../api/client'
-import { DataTable, StatusBadge, PageHeader, Modal } from '../components/shared'
+import DataTable from '../components/DataTable'
+import { StatusBadge, PageHeader, Modal } from '../components/shared'
 import { useToast } from '../App'
 
 export default function PurchaseOrders() {
@@ -58,16 +59,16 @@ export default function PurchaseOrders() {
   }
 
   const columns = [
-    { key: 'id', label: 'PO #', render: r => <span className="mono">PO-{String(r.id).padStart(4, '0')}</span> },
+    { key: 'id', label: 'PO #', render: (v, r) => <span className="mono">PO-{String(r.id).padStart(4, '0')}</span> },
     { key: 'vendor_name', label: 'Vendor' },
-    { key: 'status', label: 'Status', render: r => <StatusBadge status={r.status} /> },
-    { key: 'total_cost', label: 'Total', render: r => <span className="mono">£{r.total_cost.toFixed(2)}</span> },
-    { key: 'items', label: 'Items', render: r => {
+    { key: 'status', label: 'Status', render: (v, r) => <StatusBadge status={r.status} /> },
+    { key: 'total_cost', label: 'Total', render: (v, r) => <span className="mono">£{(r.total_cost || 0).toFixed(2)}</span> },
+    { key: 'items', label: 'Items', render: (v, r) => {
       const items = typeof r.items_json === 'string' ? JSON.parse(r.items_json) : (r.items_json || [])
       return items.length + ' items'
     }},
-    { key: 'created_at', label: 'Created', render: r => new Date(r.created_at).toLocaleDateString() },
-    { key: 'actions', label: '', render: r => r.status !== 'received' && (
+    { key: 'created_at', label: 'Created', render: (v, r) => r.created_at ? new Date(r.created_at).toLocaleDateString() : '—' },
+    { key: 'actions', label: '', sortable: false, render: (v, r) => r.status !== 'received' && (
       <button className="btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); openReceive(r) }}>
         Receive
       </button>
