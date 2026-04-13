@@ -102,6 +102,19 @@ def audit(action, details=None):
 
 
 # ---------------------------------------------------------------------------
+# SPA fallback — serve React app for all non-API routes
+# ---------------------------------------------------------------------------
+@app.route('/')
+def serve_spa():
+    return send_file('templates/index.html')
+
+@app.route('/<path:path>')
+def serve_spa_fallback(path):
+    # Don't interfere with API routes (already matched above)
+    return send_file('templates/index.html')
+
+
+# ---------------------------------------------------------------------------
 # Auth routes
 # ---------------------------------------------------------------------------
 

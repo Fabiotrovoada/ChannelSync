@@ -168,7 +168,7 @@ export default function AiStudio() {
       {/* Intent Templates */}
       <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px' }}>
         <h2 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text)', marginBottom: '16px' }}>Reply Templates</h2>
-        <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}">Rule-based templates used when OpenAI key is not configured</p>
+        <p style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '12px' }}>Rule-based templates used when OpenAI key is not configured</p>
         {[
           { intent: 'where_is_my_order', label: 'Where is my order?', example: '"Hi {name}, your order #{id} was dispatched on {date} via {carrier}. Tracking: {tracking}. ETA: {eta}"' },
           { intent: 'wrong_item', label: 'Wrong item received', example: '"Hi {name}, so sorry about this! The correct item is being dispatched today with priority shipping. We\'ll collect the wrong item. sincerely apologize."' },
