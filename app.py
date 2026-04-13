@@ -1307,6 +1307,66 @@ def carriers_all_rates():
 
 
 # ---------------------------------------------------------------------------
+# Plugins
+# ---------------------------------------------------------------------------
+
+@app.route('/api/plugins', methods=['GET'])
+@login_required
+def plugins_list():
+    from core.plugins import list_plugins, PluginRegistry
+    plugins = []
+    for p in list_plugins():
+        installed = PluginRegistry.is_installed(p.id)
+        plugins.append({
+            'id': p.id, 'name': p.name, 'type': p.type.value,
+            'icon': p.icon, 'version': p.version, 'description': p.description,
+            'is_connected': installed,
+            'config_schema': p(config={}).config_schema() if installed else p(config={}).config_schema(),
+        })
+    return jsonify({'plugins': plugins})
+
+@app.route('/api/plugins/<plugin_id>/install', methods=['POST'])
+@login_required
+def plugins_install(plugin_id):
+    from core.plugins import get_plugin, PluginRegistry
+    plugin_cls = get_plugin(plugin_id)
+    if not plugin_cls:
+        return jsonify({'error': 'Plugin not found'}), 404
+    
+    data = request.json or {}
+    config = data.get('config', {})
+    
+    try:
+        instance = plugin_cls(config)
+        health = instance.health_check()
+        PluginRegistry.install(plugin_id, config)
+        
+        # Persist to DB
+        db = get_db()
+        mid = current_merchant_id()
+        db.execute('''
+            INSERT OR REPLACE INTO plugin_installs (id, merchant_id, plugin_id, config_json, health_status, installed_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (str(uuid.uuid4()), mid, plugin_id, json.dumps(config), health.status, datetime.utcnow().isoformat()))
+        db.commit()
+        
+        return jsonify({'ok': True, 'health': {'status': health.status, 'message': health.message, 'last_check': health.last_check}})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/api/plugins/<plugin_id>/uninstall', methods=['POST'])
+@login_required
+def plugins_uninstall(plugin_id):
+    from core.plugins import PluginRegistry
+    PluginRegistry.uninstall(plugin_id)
+    db = get_db()
+    db.execute('DELETE FROM plugin_installs WHERE merchant_id = ? AND plugin_id = ?',
+               (current_merchant_id(), plugin_id))
+    db.commit()
+    return jsonify({'ok': True})
+
+
+# ---------------------------------------------------------------------------
 # Audit Log
 # ---------------------------------------------------------------------------
 

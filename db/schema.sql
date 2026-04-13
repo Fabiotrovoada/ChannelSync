@@ -132,3 +132,12 @@ CREATE INDEX IF NOT EXISTS idx_carriers_merchant ON carriers(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_channels_merchant ON channels(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_merchant ON audit_log(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_po_merchant ON purchase_orders(merchant_id);
+
+CREATE TABLE IF NOT EXISTS plugin_installs (
+    id TEXT PRIMARY KEY,
+    merchant_id INTEGER REFERENCES merchants(id),
+    plugin_id TEXT NOT NULL,
+    config_json TEXT,
+    health_status TEXT,
+    installed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
