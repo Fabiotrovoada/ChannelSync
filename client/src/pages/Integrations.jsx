@@ -28,6 +28,11 @@ const PLUGIN_CATALOG = {
     { id: 'mirakl', name: 'B&Q / Mirakl', description: 'Mirakl-based marketplaces — B&Q, Auchan, and other dropship platforms.', icon: '🏪', color: '#003087', connected: false, tier: 'standard' },
     { id: 'magento', name: 'Magento 2', description: 'Magento Open Source + Commerce REST API — enterprise catalog and orders.', icon: '🛍️', color: '#F46F25', connected: false, tier: 'pro' },
     { id: 'prestashop', name: 'PrestaShop', description: 'PrestaShop 1.7+ REST API — European open-source ecommerce platform.', icon: '🛒', color: '#1A1A1A', connected: false, tier: 'pro' },
+    { id: 'google_shopping', name: 'Google Shopping', description: 'Google Merchant Center — list products on Google Shopping and surfaces across Google Search.', icon: '🔍', color: '#4285F4', connected: false, tier: 'standard' },
+    { id: 'facebook_marketplace', name: 'Facebook Marketplace', description: 'Facebook Marketplace — local and national sales to 1B+ Facebook users.', icon: '📘', color: '#1877F2', connected: false, tier: 'standard' },
+    { id: 'alibaba', name: 'Alibaba.com', description: 'B2B international marketplace — bulk orders, wholesale pricing, global buyers.', icon: '🏭', color: '#FF6A00', connected: false, tier: 'standard' },
+    { id: 'morrisons', name: 'Morrisons', description: 'UK grocery marketplace — Morrisons online supermarket listings.', icon: '🛒', color: '#00723A', connected: false, tier: 'pro' },
+    { id: 'cc_food', name: 'C&C Foodservice', description: 'UK foodservice marketplace — sell to caterers and food businesses.', icon: '🍎', color: '#4CAF50', connected: false, tier: 'pro' },
   ],
   carrier: [
     { id: 'royal_mail', name: 'Royal Mail', description: 'Click & Drop API — 1st/2nd Class, Signed, Special Delivery, International.', icon: '👑', color: '#E60000', connected: false, tier: 'core' },
