@@ -5,8 +5,8 @@ services:
     region: london
     buildCommand: |
       pip install -r requirements.txt
-      cd client && npm install && npm run build && cd ..
+      cd client && npm install && npm run build
       cp client/dist/index.html templates/
-      cp -r client/dist/assets/* static/assets/
+      cp -r dist/assets/* static/assets/
     startCommand: gunicorn app:app
     healthCheckPath: /
