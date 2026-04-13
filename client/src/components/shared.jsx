@@ -23,14 +23,14 @@ export function KPICard({ label, value, delta, loading, prefix = '' }) {
   if (loading) {
     return (
       <div className="kpi-card">
-        <Skeleton height={28} width={80} />
-        <Skeleton height={12} width={100} style={{ marginTop: 8 }} />
+        <Skeleton height={26} width={70} />
+        <Skeleton height={11} width={90} style={{ marginTop: 6 }} />
       </div>
     )
   }
   return (
     <div className="kpi-card">
-      <div className="kpi-value">{prefix}{typeof value === 'number' ? value.toLocaleString() : value}</div>
+      <div className="kpi-value">{prefix}{typeof value === 'number' ? value.toLocaleString() : value ?? '—'}</div>
       <div className="kpi-label">{label}</div>
       {delta !== undefined && (
         <div className={`kpi-delta ${delta >= 0 ? 'delta-up' : 'delta-down'}`}>

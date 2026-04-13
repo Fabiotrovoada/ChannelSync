@@ -37,7 +37,7 @@ function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={addToast}>
       {children}
-      <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="toast-container">
         {toasts.map(t => (
           <div key={t.id} className={`toast toast-${t.type}`}>
             {t.message}
@@ -50,7 +50,7 @@ function ToastProvider({ children }) {
 
 // Sidebar nav items
 const NAV = [
-  { to: '/', icon: '◈', label: 'Dashboard' },
+  { to: '/', icon: '⊞', label: 'Dashboard' },
   { to: '/orders', icon: '⊞', label: 'Orders' },
   { to: '/messages', icon: '◉', label: 'Messages' },
   { to: '/listings', icon: '▤', label: 'Listings' },
@@ -64,7 +64,7 @@ const NAV = [
   { to: '/audit-log', icon: '◫', label: 'Audit Log' },
 ]
 
-function Sidebar({ collapsed, onToggle }) {
+function Sidebar({ mobileOpen, onClose }) {
   const navigate = useNavigate()
   const { user, setUser } = useAuth()
 
@@ -74,57 +74,69 @@ function Sidebar({ collapsed, onToggle }) {
     navigate('/login')
   }
 
+  const handleNav = (to) => {
+    navigate(to)
+    onClose()
+  }
+
   return (
-    <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
-      <div className="sidebar-header">
-        <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">CS</div>
-          {!collapsed && <span className="sidebar-logo-text">ChannelSync</span>}
-        </div>
-        <button className="sidebar-toggle" onClick={onToggle}>
-          {collapsed ? '›' : '‹'}
-        </button>
-      </div>
-      <nav className="sidebar-nav">
-        {NAV.map(item => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
-            className={({ isActive }) => `nav-item ${isActive ? 'nav-active' : ''}`}
-          >
-            <span className="nav-icon">{item.icon}</span>
-            {!collapsed && <span className="nav-label">{item.label}</span>}
-          </NavLink>
-        ))}
-      </nav>
-      <div className="sidebar-footer">
-        {!collapsed && user && (
-          <div className="user-info">
-            <div className="user-name">{user.business_name}</div>
-            <div className="user-email">{user.email}</div>
+    <>
+      {/* Mobile overlay backdrop */}
+      {mobileOpen && <div className="sidebar-backdrop" onClick={onClose} />}
+      
+      <aside className={`sidebar ${mobileOpen ? 'sidebar-mobile-open' : ''}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <div className="sidebar-logo-icon">CS</div>
+            <span className="sidebar-logo-text">ChannelSync</span>
           </div>
-        )}
-        <button className="btn-ghost btn-sm" onClick={handleLogout} style={{ width: '100%' }}>
-          {collapsed ? '⏻' : 'Sign out'}
-        </button>
-      </div>
-    </aside>
+          <button className="sidebar-close-btn" onClick={onClose}>✕</button>
+        </div>
+        <nav className="sidebar-nav">
+          {NAV.map(item => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              className={({ isActive }) => `nav-item ${isActive ? 'nav-active' : ''}`}
+              onClick={() => onClose()}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          {user && (
+            <div className="user-info">
+              <div className="user-name">{user.business_name}</div>
+              <div className="user-email">{user.email}</div>
+            </div>
+          )}
+          <button className="btn btn-ghost btn-sm" onClick={handleLogout} style={{ width: '100%', justifyContent: 'center' }}>
+            Sign out
+          </button>
+        </div>
+      </aside>
+    </>
   )
 }
 
 function AppShell() {
-  const [collapsed, setCollapsed] = useState(window.innerWidth < 768)
-
-  useEffect(() => {
-    const handler = () => setCollapsed(window.innerWidth < 768)
-    window.addEventListener('resize', handler)
-    return () => window.removeEventListener('resize', handler)
-  }, [])
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
     <div className="app-shell">
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+      {/* Mobile top bar */}
+      <div className="mobile-topbar">
+        <button className="hamburger-btn" onClick={() => setMobileOpen(true)}>
+          <span /><span /><span />
+        </button>
+        <div className="mobile-logo">ChannelSync</div>
+      </div>
+
+      <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
+      
       <main className="main-content">
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -159,7 +171,13 @@ export default function App() {
   }, [])
 
   if (loading) {
-    return <div className="loading-screen"><div className="spinner" /><span style={{ fontSize: 14, color: 'var(--text2)' }}>Loading ChannelSync...</span></div>
+    return (
+      <div className="loading-screen">
+        <div className="loading-logo">CS</div>
+        <div className="spinner" />
+        <span style={{ fontSize: 14, color: 'var(--text2)', marginTop: 12 }}>ChannelSync</span>
+      </div>
+    )
   }
 
   return (
