@@ -15,6 +15,7 @@ import Channels from './pages/Channels'
 import Settings from './pages/Settings'
 import AuditLog from './pages/AuditLog'
 import Login from './pages/Login'
+import Integrations from './pages/Integrations'
 
 // Auth context
 const AuthContext = createContext(null)
@@ -57,6 +58,7 @@ const NAV = [
   { to: '/purchase-orders', icon: '◧', label: 'Purchase Orders' },
   { to: '/shipping', icon: '▷', label: 'Shipping' },
   { to: '/ai-studio', icon: '◆', label: 'AI Studio' },
+  { to: '/integrations', icon: '⊛', label: 'Integrations' },
   { to: '/channels', icon: '⊕', label: 'Channels' },
   { to: '/settings', icon: '⚙', label: 'Settings' },
   { to: '/audit-log', icon: '◫', label: 'Audit Log' },
@@ -134,6 +136,7 @@ function AppShell() {
           <Route path="/ai-studio" element={<AIStudio />} />
           <Route path="/channels" element={<Channels />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/integrations" element={<Integrations />} />
           <Route path="/audit-log" element={<AuditLog />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
