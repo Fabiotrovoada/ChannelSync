@@ -1003,6 +1003,310 @@ def ai_config_set():
 
 
 # ---------------------------------------------------------------------------
+# Direct Carrier APIs (bypass ShipStation)
+# ---------------------------------------------------------------------------
+
+@app.route('/api/carriers/rates', methods=['GET'])
+@login_required
+def carriers_rates():
+    """
+    Get shipping rates from a specific carrier.
+    Query params: carrier (royal_mail/dpd/evri/dhl/ups/fedex/yodel/parcelforce), order_id
+    """
+    from carriers import get_carrier_adapter
+
+    carrier_type = request.args.get('carrier')
+    order_id = request.args.get('order_id')
+
+    if not carrier_type or not order_id:
+        return jsonify({'error': 'carrier and order_id required'}), 400
+
+    db = get_db()
+    mid = current_merchant_id()
+
+    # Get order
+    order = dict_row(db.execute(
+        'SELECT * FROM orders WHERE id = ? AND merchant_id = ?', (order_id, mid)
+    ).fetchone())
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    # Get carrier credentials from merchant config
+    carrier_creds = db.execute(
+        'SELECT credentials_json FROM carriers WHERE merchant_id = ? AND carrier_type = ? AND active = 1',
+        (mid, carrier_type)
+    ).fetchone()
+
+    if not carrier_creds:
+        return jsonify({'error': f'Carrier {carrier_type} not connected'}), 404
+
+    import json as _json
+    try:
+        creds = _json.loads(carrier_creds['credentials_json'] or '{}')
+    except Exception:
+        creds = {}
+
+    # Build shipment dict from order
+    items = _json.loads(order['items_json'] or '[]')
+    total_weight = sum(float(it.get('weight_kg', 0.5) or 0.5) * it.get('qty', 1) for it in items) or 0.5
+    total_value = float(order['total'] or 0)
+
+    shipment = {
+        'from': {
+            'name': 'FTPaints Ltd',
+            'company': 'FTPaints Ltd',
+            'address1': 'Unit 1',
+            'address2': 'Industrial Estate',
+            'city': 'Coventry',
+            'postcode': 'CV1 5FB',
+            'country': 'GB',
+            'phone': '',
+            'email': '',
+        },
+        'to': {
+            'name': order['customer_name'] or 'Customer',
+            'address1': order['address'] or '',
+            'city': '',
+            'postcode': '',
+            'country': 'GB',
+            'phone': '',
+            'email': order['customer_email'] or '',
+        },
+        'parcels': [{'weight': total_weight, 'length': 30, 'width': 20, 'height': 10, 'value': total_value}],
+        'order_id': order['order_number'] or order_id,
+        'value': total_value,
+    }
+
+    try:
+        adapter = get_carrier_adapter(carrier_type, creds)
+        rates = adapter.get_rates(shipment)
+        return jsonify({
+            'rates': [r.to_dict() for r in rates],
+            'carrier': carrier_type,
+            'order_id': int(order_id),
+        })
+    except Exception as e:
+        logger.error(f'[API] Carrier rates failed for {carrier_type}: {e}')
+        return jsonify({'error': str(e), 'carrier': carrier_type}), 500
+
+
+@app.route('/api/carriers/labels', methods=['POST'])
+@login_required
+def carriers_labels():
+    """
+    Purchase a shipping label from a specific carrier.
+    Body: {carrier, order_id, service_id}
+    """
+    from carriers import get_carrier_adapter
+
+    data = request.get_json() or {}
+    carrier_type = data.get('carrier')
+    order_id = data.get('order_id')
+    service_id = data.get('service_id')
+
+    if not carrier_type or not order_id:
+        return jsonify({'error': 'carrier and order_id required'}), 400
+
+    db = get_db()
+    mid = current_merchant_id()
+
+    order = dict_row(db.execute(
+        'SELECT * FROM orders WHERE id = ? AND merchant_id = ?', (order_id, mid)
+    ).fetchone())
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    carrier_creds = db.execute(
+        'SELECT credentials_json FROM carriers WHERE merchant_id = ? AND carrier_type = ? AND active = 1',
+        (mid, carrier_type)
+    ).fetchone()
+
+    if not carrier_creds:
+        return jsonify({'error': f'Carrier {carrier_type} not connected'}), 404
+
+    import json as _json
+    try:
+        creds = _json.loads(carrier_creds['credentials_json'] or '{}')
+    except Exception:
+        creds = {}
+
+    items = _json.loads(order['items_json'] or '[]')
+    total_weight = sum(float(it.get('weight_kg', 0.5) or 0.5) * it.get('qty', 1) for it in items) or 0.5
+
+    shipment = {
+        'from': {
+            'name': 'FTPaints Ltd',
+            'company': 'FTPaints Ltd',
+            'address1': 'Unit 1',
+            'address2': 'Industrial Estate',
+            'city': 'Coventry',
+            'postcode': 'CV1 5FB',
+            'country': 'GB',
+            'phone': '',
+            'email': '',
+        },
+        'to': {
+            'name': order['customer_name'] or 'Customer',
+            'address1': order['address'] or '',
+            'city': '',
+            'postcode': '',
+            'country': 'GB',
+            'phone': '',
+            'email': order['customer_email'] or '',
+        },
+        'parcels': [{'weight': total_weight, 'length': 30, 'width': 20, 'height': 10, 'value': float(order['total'] or 0)}],
+        'order_id': order['order_number'] or order_id,
+        'value': float(order['total'] or 0),
+    }
+
+    try:
+        adapter = get_carrier_adapter(carrier_type, creds)
+        label = adapter.create_label(shipment, service_id)
+
+        # Update order with tracking
+        db.execute(
+            'UPDATE orders SET status = ?, carrier = ?, tracking_number = ?, shipped_at = ? WHERE id = ?',
+            ('shipped', carrier_type, label.tracking_number, datetime.utcnow().isoformat(), order_id)
+        )
+        db.commit()
+        audit('label_purchased', {
+            'order_id': order_id, 'carrier': carrier_type,
+            'tracking': label.tracking_number, 'service': label.service
+        })
+
+        return jsonify(label.to_dict())
+    except Exception as e:
+        logger.error(f'[API] Label purchase failed for {carrier_type}: {e}')
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/carriers', methods=['GET'])
+@login_required
+def carriers_list():
+    """List all connected carriers for this merchant."""
+    db = get_db()
+    mid = current_merchant_id()
+    carriers = db.execute(
+        'SELECT * FROM carriers WHERE merchant_id = ?', (mid,)
+    ).fetchall()
+    return jsonify([dict_row(c) for c in carriers])
+
+
+@app.route('/api/carriers', methods=['POST'])
+@login_required
+def carriers_add():
+    """Add a carrier connection."""
+    data = request.get_json() or {}
+    carrier_type = data.get('carrier_type')
+    display_name = data.get('display_name', carrier_type)
+    credentials = data.get('credentials', {})
+
+    if not carrier_type:
+        return jsonify({'error': 'carrier_type required'}), 400
+
+    import uuid
+    import json as _json
+
+    cid = str(uuid.uuid4())
+    db.execute(
+        'INSERT INTO carriers (id, merchant_id, carrier_type, display_name, credentials_json, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        (cid, current_merchant_id(), carrier_type, display_name, _json.dumps(credentials), 1, datetime.utcnow().isoformat())
+    )
+    db.commit()
+    audit('carrier_added', {'carrier': carrier_type, 'id': cid})
+    return jsonify({'ok': True, 'id': cid})
+
+
+@app.route('/api/carriers/<cid>/toggle', methods=['POST'])
+@login_required
+def carriers_toggle(cid):
+    data = request.json or {}
+    db = get_db()
+    db.execute(
+        'UPDATE carriers SET active = ? WHERE id = ? AND merchant_id = ?',
+        (1 if data.get('active') else 0, cid, current_merchant_id())
+    )
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/carriers/<cid>', methods=['DELETE'])
+@login_required
+def carriers_delete(cid):
+    db = get_db()
+    db.execute(
+        'DELETE FROM carriers WHERE id = ? AND merchant_id = ?',
+        (cid, current_merchant_id())
+    )
+    db.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/carriers/all-rates', methods=['GET'])
+@login_required
+def carriers_all_rates():
+    """
+    Get rates from ALL connected carriers for an order.
+    Combines results from ShipStation + all connected direct carriers.
+    """
+    from core.shipstation import ShipStationClient, DEMO_RATES
+
+    order_id = request.args.get('order_id')
+    if not order_id:
+        return jsonify({'error': 'order_id required'}), 400
+
+    db = get_db()
+    mid = current_merchant_id()
+    order = dict_row(db.execute(
+        'SELECT * FROM orders WHERE id = ? AND merchant_id = ?', (order_id, mid)
+    ).fetchone())
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    merchant = dict_row(db.execute('SELECT * FROM merchants WHERE id = ?', (mid,)).fetchone())
+    all_rates = {}
+
+    # ShipStation
+    if merchant.get('shipstation_api_key'):
+        try:
+            client = ShipStationClient(merchant['shipstation_api_key'], merchant['shipstation_api_secret'])
+            rates = client.fetch_rates_for_order(order)
+            if rates:
+                all_rates['shipstation'] = rates
+        except Exception as e:
+            logger.error(f'ShipStation rates failed: {e}')
+
+    # Direct carriers
+    carriers = db.execute(
+        'SELECT * FROM carriers WHERE merchant_id = ? AND active = 1', (mid,)
+    ).fetchall()
+    import json as _json
+    for carrier in carriers:
+        try:
+            creds = _json.loads(carrier['credentials_json'] or '{}')
+            from carriers import get_carrier_adapter
+            adapter = get_carrier_adapter(carrier['carrier_type'], creds)
+
+            items = _json.loads(order['items_json'] or '[]')
+            total_weight = sum(float(it.get('weight_kg', 0.5) or 0.5) * it.get('qty', 1) for it in items) or 0.5
+
+            shipment = {
+                'from': {'name': 'FTPaints Ltd', 'address1': 'Unit 1', 'city': 'Coventry', 'postcode': 'CV1 5FB', 'country': 'GB'},
+                'to': {'name': order['customer_name'] or '', 'address1': order['address'] or '', 'city': '', 'postcode': '', 'country': 'GB'},
+                'parcels': [{'weight': total_weight}],
+                'order_id': order['order_number'] or order_id,
+                'value': float(order['total'] or 0),
+            }
+
+            rates = adapter.get_rates(shipment)
+            all_rates[carrier['carrier_type']] = [r.to_dict() for r in rates]
+        except Exception as e:
+            logger.error(f'Carrier {carrier["carrier_type"]} rates failed: {e}')
+
+    return jsonify({'carriers': all_rates, 'order_id': int(order_id)})
+
+
+# ---------------------------------------------------------------------------
 # Audit Log
 # ---------------------------------------------------------------------------
 

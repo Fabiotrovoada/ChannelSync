@@ -117,6 +117,18 @@ CREATE INDEX IF NOT EXISTS idx_orders_merchant ON orders(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_messages_merchant ON messages(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_messages_status ON messages(status);
+CREATE TABLE IF NOT EXISTS carriers (
+    id TEXT PRIMARY KEY,
+    merchant_id INTEGER NOT NULL REFERENCES merchants(id),
+    carrier_type TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    credentials_json TEXT,
+    active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_carriers_merchant ON carriers(merchant_id);
+
 CREATE INDEX IF NOT EXISTS idx_channels_merchant ON channels(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_merchant ON audit_log(merchant_id);
 CREATE INDEX IF NOT EXISTS idx_po_merchant ON purchase_orders(merchant_id);

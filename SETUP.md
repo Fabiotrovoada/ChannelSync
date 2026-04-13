@@ -170,11 +170,55 @@ Add in Settings page (API Key + Secret) — used for all label purchasing.
 
 ---
 
+## Integrations
+
+### Marketplaces (11 channels)
+| Channel | Status | Auth | Key Methods |
+|---------|--------|------|-------------|
+| Amazon SP-API | ✅ Ready | LWA OAuth 2.0 | fetch_orders, push_tracking, fetch_listings |
+| eBay | ✅ Ready | OAuth 2.0 | fetch_orders, push_tracking, fetch_listings |
+| WooCommerce | ✅ Ready | REST API Key | fetch_orders, push_tracking, fetch_listings |
+| Shopify | ✅ Ready | OAuth 2.0 | fetch_orders, push_tracking, fetch_listings |
+| Etsy | ✅ Ready | OAuth 2.0 | fetch_orders, push_tracking, fetch_listings |
+| Walmart | ✅ Ready | OAuth 2.0 | fetch_orders, push_tracking, fetch_listings |
+| OnBuy | ✅ Ready | API Key | fetch_orders, push_tracking |
+| BigCommerce | ✅ Ready | REST API Token | fetch_orders, push_tracking, fetch_listings |
+| Fruugo | ✅ Ready | API Key | fetch_orders, push_tracking |
+| TikTok Shop | 🔜 Next | OAuth 2.0 | (stub — awaiting TikTok API approval) |
+| Mirakl/B&Q | ✅ Ready | API Key | fetch_orders, push_tracking, fetch_listings |
+
+### Carriers (8 direct + ShipStation)
+| Carrier | Status | Auth | Key Methods |
+|---------|--------|------|-------------|
+| Royal Mail | ✅ Ready | OAuth 2.0 | get_rates, create_label, track_package |
+| DPD UK | ✅ Ready | JWT | get_rates, create_label, track_package |
+| Evri | ✅ Ready | OAuth 2.0 | get_rates, create_label, track_package |
+| DHL UK | ✅ Ready | API Key | get_rates, create_label, track_package |
+| UPS | ✅ Ready | OAuth 2.0 | get_rates, create_label, track_package |
+| FedEx | ✅ Ready | OAuth 2.0 | get_rates, create_label, track_package |
+| Yodel | ✅ Ready | API Key | get_rates, create_label, track_package |
+| Parcelforce | ✅ Ready | OAuth 2.0 | get_rates, create_label, track_package |
+| ShipStation | ✅ Ready | API Key | get_rates, create_label, track_package (fallback) |
+
+### Carrier Credentials Format
+```json
+{
+  "royal_mail": {"client_id": "...", "client_secret": "...", "account_number": "..."},
+  "dpd": {"username": "...", "password": "...", "api_key": "...", "account_number": "..."},
+  "evri": {"client_id": "...", "client_secret": "...", "base_url": "https://api.evri.com"},
+  "dhl": {"api_key": "...", "account_number": "..."},
+  "ups": {"client_id": "...", "client_secret": "...", "account_number": "..."},
+  "fedex": {"api_key": "...", "api_secret": "...", "account_number": "...", "meter_number": "..."},
+  "yodel": {"api_key": "...", "account_id": "..."},
+  "parcelforce": {"client_id": "...", "client_secret": "...", "account_number": "..."}
+}
+```
+
 ## Architecture
 
 - **Backend:** Flask 3 + SQLite (multi-tenant, merchant_id on every table)
 - **Frontend:** React 18 + Vite + React Router v6
 - **Auth:** Server-side sessions with httpOnly cookies
 - **AI:** Intent detection + rule-based replies; GPT-4 when OpenAI key provided
-- **Shipping:** ShipStation API for rates and label purchase
-- **Sync:** Per-channel adapter pattern (Amazon SP-API, eBay API, etc.)
+- **Shipping:** ShipStation API + 8 direct carrier APIs for rates and label purchase
+- **Sync:** Per-channel adapter pattern (all 11 marketplace adapters implemented)
