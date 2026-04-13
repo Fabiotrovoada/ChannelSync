@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: channelsync
+    env: python
+    region: london
+    buildCommand: |
+      pip install -r requirements.txt
+      cd client && npm install && npm run build && cd ..
+      cp client/dist/index.html templates/
+      cp -r client/dist/assets/* static/assets/
+    startCommand: gunicorn app:app
+    healthCheckPath: /
