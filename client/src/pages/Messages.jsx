@@ -9,15 +9,30 @@ export default function Messages() {
   const [selected, setSelected] = useState(null)
   const [replyText, setReplyText] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
-  const [filter, setFilter] = useState('open')
+  const [statusFilter, setStatusFilter] = useState('open')
+  const [channelFilter, setChannelFilter] = useState('')
   const toast = useToast()
+
+  const CHANNELS = [
+    { id: '', label: 'All Channels' },
+    { id: 'amazon', label: 'Amazon' },
+    { id: 'ebay', label: 'eBay' },
+    { id: 'woocommerce', label: 'WooCommerce' },
+    { id: 'shopify', label: 'Shopify' },
+    { id: 'tiktok', label: 'TikTok Shop' },
+    { id: 'etsy', label: 'Etsy' },
+    { id: 'walmart', label: 'Walmart' },
+    { id: 'mirakl', label: 'Mirakl' },
+  ]
 
   const load = () => {
     setLoading(true)
-    api.messages({ status: filter }).then(d => setMessages(d.messages)).finally(() => setLoading(false))
+    const params = { status: statusFilter }
+    if (channelFilter) params.channel = channelFilter
+    api.messages(params).then(d => setMessages(d.messages || [])).finally(() => setLoading(false))
   }
 
-  useEffect(load, [filter])
+  useEffect(load, [statusFilter, channelFilter])
 
   const handleAiReply = async (msg) => {
     setAiLoading(true)
@@ -49,10 +64,14 @@ export default function Messages() {
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">Messages</h1>
-        <div className="page-actions">
-          <select className="input" value={filter} onChange={e => setFilter(e.target.value)}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <select className="form-select" value={channelFilter} onChange={e => setChannelFilter(e.target.value)} style={{ width: 'auto', minWidth: 130 }}>
+            {CHANNELS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+          <select className="form-select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: 'auto', minWidth: 110 }}>
             <option value="open">Open</option>
             <option value="resolved">Resolved</option>
+            <option value="all">All</option>
           </select>
         </div>
       </div>
@@ -62,7 +81,7 @@ export default function Messages() {
           {loading ? (
             Array.from({ length: 6 }, (_, i) => <Skeleton key={i} height={72} style={{ marginBottom: 8 }} />)
           ) : messages.length === 0 ? (
-            <p className="text-muted" style={{ padding: 20 }}>No {filter} messages</p>
+            <p className="text-muted" style={{ padding: 20 }}>No {statusFilter} messages</p>
           ) : (
             messages.map(msg => (
               <div

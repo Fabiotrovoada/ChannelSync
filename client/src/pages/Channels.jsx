@@ -14,7 +14,7 @@ export default function Channels() {
   async function loadChannels() {
     try {
       const data = await api.channels();
-      setChannels(data);
+      setChannels(data.channels || []);
     } finally {
       setLoading(false);
     }
