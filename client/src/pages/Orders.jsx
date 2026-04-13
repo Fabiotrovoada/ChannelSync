@@ -1,9 +1,52 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { StatusBadge, ChannelBadge, Skeleton } from '../components/shared'
+import { StatusBadge, ChannelBadge } from '../components/shared'
+import DataTable from '../components/DataTable'
 import { useToast } from '../App'
-import { CheckSquare, Square, Package, RefreshCw } from 'lucide-react'
+import { CheckSquare, Square, RefreshCw } from 'lucide-react'
+
+const CHANNEL_OPTIONS = [
+  { id: '', label: 'All Channels' },
+  { id: 'amazon', label: 'Amazon' },
+  { id: 'ebay', label: 'eBay' },
+  { id: 'woocommerce', label: 'WooCommerce' },
+  { id: 'shopify', label: 'Shopify' },
+  { id: 'tiktok', label: 'TikTok Shop' },
+  { id: 'etsy', label: 'Etsy' },
+  { id: 'mirakl', label: 'Mirakl' },
+]
+
+const COLUMNS = [
+  {
+    key: 'order_number', label: 'Order', width: 130, sortable: true,
+    render: v => <span className="mono" style={{ fontSize: 11, fontWeight: 600 }}>{v}</span>,
+  },
+  {
+    key: 'channel', label: 'Channel', width: 100, sortable: true,
+    render: v => <ChannelBadge channel={v} />,
+  },
+  {
+    key: 'customer_name', label: 'Customer', sortable: true,
+    render: v => <span style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{v}</span>,
+  },
+  {
+    key: 'total', label: 'Total', width: 90, sortable: true,
+    render: v => <span className="mono">£{(v || 0).toFixed(2)}</span>,
+  },
+  {
+    key: 'status', label: 'Status', width: 110, sortable: true,
+    render: v => <StatusBadge status={v} />,
+  },
+  {
+    key: 'order_date', label: 'Date', width: 100, sortable: true,
+    render: v => v ? new Date(v).toLocaleDateString() : '—',
+  },
+  {
+    key: 'tracking_number', label: 'Tracking', sortable: true,
+    render: v => <span className="mono text-muted" style={{ fontSize: 11 }}>{v || '—'}</span>,
+  },
+]
 
 export default function Orders() {
   const [orders, setOrders] = useState([])
@@ -14,17 +57,6 @@ export default function Orders() {
   const [pages, setPages] = useState(1)
   const navigate = useNavigate()
   const toast = useToast()
-
-  const CHANNELS = [
-    { id: '', label: 'All Channels' },
-    { id: 'amazon', label: 'Amazon' },
-    { id: 'ebay', label: 'eBay' },
-    { id: 'woocommerce', label: 'WooCommerce' },
-    { id: 'shopify', label: 'Shopify' },
-    { id: 'tiktok', label: 'TikTok Shop' },
-    { id: 'etsy', label: 'Etsy' },
-    { id: 'mirakl', label: 'Mirakl' },
-  ]
 
   const load = useCallback(() => {
     setLoading(true)
@@ -47,7 +79,8 @@ export default function Orders() {
 
   useEffect(() => { load() }, [load])
 
-  const toggleSelect = (id) => {
+  const toggleSelect = (id, e) => {
+    e?.stopPropagation()
     setSelectedIds(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -88,7 +121,9 @@ export default function Orders() {
       <div className="page-header">
         <div className="page-title-row">
           <h1 className="page-title">Orders</h1>
-          <p className="page-subtitle">{total > 0 ? `${total} orders total` : 'Manage your orders'}</p>
+          <p className="page-subtitle">
+            {total > 0 ? `${total} orders` : 'Manage your orders'} · Drag columns to reorder · Click headers to sort
+          </p>
         </div>
         <div className="page-actions">
           <button className="btn btn-secondary btn-sm" onClick={handleSync} disabled={loading}>
@@ -100,12 +135,12 @@ export default function Orders() {
       {/* Bulk Actions Bar */}
       {selectedIds.size > 0 && (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px',
+          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px',
           background: 'var(--accent-light)', borderBottom: '1px solid var(--border)',
-          flexWrap: 'wrap'
+          flexWrap: 'wrap',
         }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>
-            {selectedIds.size} order{selectedIds.size !== 1 ? 's' : ''} selected
+            {selectedIds.size} selected
           </span>
           <button className="btn btn-sm" style={{ background: 'var(--accent)', color: '#fff' }} onClick={() => handleBulkStatus('shipped')}>
             Mark Shipped
@@ -116,8 +151,8 @@ export default function Orders() {
           <button className="btn btn-danger btn-sm" onClick={() => handleBulkStatus('cancelled')}>
             Cancel
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setSelectedIds(new Set())} style={{ marginLeft: 'auto' }}>
-            Clear
+          <button className="btn btn-ghost btn-sm" onClick={toggleAll} style={{ marginLeft: 'auto' }}>
+            Clear selection
           </button>
         </div>
       )}
@@ -132,7 +167,7 @@ export default function Orders() {
           style={{ width: 200 }}
         />
         <select className="form-select" value={filters.channel} onChange={e => setFilters({ ...filters, channel: e.target.value, page: 1 })} style={{ width: 'auto', minWidth: 130 }}>
-          {CHANNELS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          {CHANNEL_OPTIONS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
         <select className="form-select" value={filters.status} onChange={e => setFilters({ ...filters, status: e.target.value, page: 1 })} style={{ width: 'auto', minWidth: 130 }}>
           <option value="">All Statuses</option>
@@ -144,72 +179,31 @@ export default function Orders() {
       </div>
 
       {/* Table */}
-      <div className="card" style={{ margin: '0 16px 16px', borderRadius: 'var(--radius)' }}>
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ width: 40 }}>
-                  <button onClick={toggleAll} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', display: 'flex', padding: 4 }}>
-                    {selectedIds.size === orders.length && orders.length > 0 ? <CheckSquare size={15} /> : <Square size={15} />}
-                  </button>
-                </th>
-                <th>Order</th>
-                <th>Channel</th>
-                <th>Customer</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Tracking</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 8 }).map((_, i) => (
-                  <tr key={i}>
-                    <td><Skeleton height={14} width={20} /></td>
-                    {[120, 80, 120, 70, 70, 80, 100].map((w, j) => (
-                      <td key={j}><Skeleton height={14} width={w} /></td>
-                    ))}
-                  </tr>
-                ))
-              ) : orders.length === 0 ? (
-                <tr><td colSpan={8}><div className="empty-state"><Package size={32} style={{ opacity: 0.2, marginBottom: 8 }} /><div className="empty-state-title">No orders found</div></div></td></tr>
-              ) : (
-                orders.map(order => (
-                  <tr
-                    key={order.id}
-                    className="clickable"
-                    onClick={() => navigate(`/orders/${order.id}`)}
-                    style={{ background: selectedIds.has(order.id) ? 'var(--accent-light)' : '' }}
-                  >
-                    <td onClick={e => { e.stopPropagation(); toggleSelect(order.id) }}>
-                      <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: selectedIds.has(order.id) ? 'var(--accent)' : 'var(--text3)', display: 'flex', padding: 4 }}>
-                        {selectedIds.has(order.id) ? <CheckSquare size={15} /> : <Square size={15} />}
-                      </button>
-                    </td>
-                    <td><span className="mono" style={{ fontSize: 11 }}>{order.order_number}</span></td>
-                    <td><ChannelBadge channel={order.channel} /></td>
-                    <td style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.customer_name}</td>
-                    <td><span className="mono">£{order.total?.toFixed(2)}</span></td>
-                    <td><StatusBadge status={order.status} /></td>
-                    <td style={{ fontSize: 12, color: 'var(--text2)' }}>{order.order_date ? new Date(order.order_date).toLocaleDateString() : '—'}</td>
-                    <td style={{ fontSize: 11, color: 'var(--text3)' }}>{order.tracking_number || '—'}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      <div className="card" style={{ margin: '0 16px 16px' }}>
+        <DataTable
+          columns={COLUMNS}
+          data={orders}
+          loading={loading}
+          emptyMessage="No orders found"
+          onRowClick={row => navigate(`/orders/${row.id}`)}
+        />
 
         {/* Pagination */}
         {pages > 1 && (
           <div className="pagination">
-            <button className="btn btn-secondary btn-sm" onClick={() => setFilters(f => ({ ...f, page: Math.max(1, f.page - 1) }))} disabled={filters.page === 1}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setFilters(f => ({ ...f, page: Math.max(1, f.page - 1) }))}
+              disabled={filters.page === 1}
+            >
               ← Prev
             </button>
             <span className="pagination-info">Page {filters.page} of {pages}</span>
-            <button className="btn btn-secondary btn-sm" onClick={() => setFilters(f => ({ ...f, page: f.page + 1 }))} disabled={filters.page >= pages}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setFilters(f => ({ ...f, page: f.page + 1 }))}
+              disabled={filters.page >= pages}
+            >
               Next →
             </button>
           </div>
